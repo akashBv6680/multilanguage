@@ -1,50 +1,39 @@
 import streamlit as st
-from transformers import pipeline
+import os
+from transformers import pipeline, Conversation
 
-# This is a basic example using a pre-trained pipeline from Hugging Face.
-# For a production-ready app, you'd want a more robust model and setup, possibly with a vector database for RAG.
-# You might need to adjust this depending on the specific model you choose.
-@st.cache_resource(show_spinner=False)
-def get_model():
-    # Using a conversational model, e.g., 'microsoft/DialoGPT-medium' or a similar one.
-    # Note: For multilingual capabilities, you'd use a model like 'google/gemma-2b-it' or 'Cohere/c4ai-command-r-v01'
-    # For a real-world app, you might connect to an API like Google's Gemini or OpenAI's GPT.
-    model = pipeline('text-generation', model='distilgpt2')
-    return model
+# To use a multilingual model, you might choose one like 'google/gemma-2b-it'
+# or 'facebook/blenderbot-400M-distill'. For this example, we'll use a placeholder.
+# In a real-world app, you'd load a model and tokenizer from Hugging Face.
+# @st.cache_resource(show_spinner=False)
+# def get_model():
+#     # This is where you would load your model
+#     model = pipeline("conversational", model="facebook/blenderbot-400M-distill")
+#     return model
 
-# Function to get the chatbot's reply.
-def get_reply(user_input, chat_history, language_code):
-    # Here, you would implement the logic to get a smart reply.
-    # 1. Information Extraction (e.g., using a separate NLP model or prompt engineering)
-    # 2. RAG (if applicable): Search your knowledge base and retrieve relevant chunks.
-    # 3. Prompt Engineering: Combine user input, chat history, and retrieved context.
-
-    # Example prompt template for a multilingual model
-    prompt_template = f"The following is a conversation in {language_code}. Reply in the same language.\n\n"
-    for msg in chat_history:
-        prompt_template += f"{msg['role'].capitalize()}: {msg['content']}\n"
-    prompt_template += f"User: {user_input}\nAssistant:"
-
-    # A simple, static example of how the model might respond.
-    # In a real app, this would be an API call to the LLM.
-    responses = {
-        "en": "Hello! How can I assist you with that?",
-        "ta": "வணக்கம்! இதில் நான் உங்களுக்கு எப்படி உதவ முடியும்?",
-        "fr": "Bonjour ! Comment puis-je vous aider avec cela ?",
-        "ja": "こんにちは！そちらについてお手伝いしましょうか？"
-    }
-
-    # Here's where the magic happens. You would pass the prompt to the model.
-    # For this simplified example, we'll use a placeholder response.
-    # You would replace this with:
-    # response = model(prompt_template, max_length=150, truncation=True)[0]['generated_text']
+# Function to get the chatbot's full, conventional reply
+def get_conventional_reply(user_input, chat_history, language_code):
+    # This is a placeholder for a real LLM call.
+    # In practice, you would format the chat_history into a prompt.
     
-    return responses.get(language_code, "Sorry, I can only respond in English, Tamil, French, or Japanese.")
+    # A simple example of context-aware, multi-sentence replies
+    if language_code == "en":
+        response = "That's a great question! I'm here to help. Could you please provide more details about what you need assistance with?"
+    elif language_code == "ta":
+        response = "அது ஒரு சிறந்த கேள்வி! நான் உங்களுக்கு உதவ இங்கு இருக்கிறேன். உங்களுக்கு என்ன உதவி தேவை என்பதைப் பற்றி மேலும் விவரங்களை வழங்க முடியுமா?"
+    elif language_code == "fr":
+        response = "C'est une excellente question ! Je suis là pour vous aider. Pourriez-vous me donner plus de détails sur ce dont vous avez besoin ?"
+    elif language_code == "ja":
+        response = "それは素晴らしい質問ですね！お手伝いさせていただきます。どのようなことにお困りか、もう少し詳しく教えていただけますか？"
+    else:
+        response = "I'm sorry, I can only provide full, conventional replies in English, Tamil, French, or Japanese."
+
+    return response
 
 # --- Streamlit UI Setup ---
 
-st.set_page_config(page_title="Smart Multilingual Chatbot", layout="wide")
-st.title("Smart Multilingual Chatbot 🧠💬")
+st.set_page_config(page_title="Fully Conventional Chatbot", layout="wide")
+st.title("Fully Conventional Chatbot 💬")
 
 # Define the language options
 languages = {
@@ -54,7 +43,7 @@ languages = {
     "Japanese": "ja"
 }
 
-# Language selection via a selectbox
+# Use a selectbox for language selection
 selected_language_name = st.selectbox(
     "Choose your language:",
     options=list(languages.keys())
@@ -65,24 +54,24 @@ selected_language_code = languages[selected_language_name]
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat messages from history on app rerun
+# Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # React to user input
-if prompt := st.chat_input("Ask me a question..."):
+if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
+    # Display user message
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Get a refined response from the chatbot
-    response = get_reply(prompt, st.session_state.messages, selected_language_code)
+    # Get a full, conversational response
+    response = get_conventional_reply(prompt, st.session_state.messages, selected_language_code)
 
     # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
-    # Display assistant response in chat message container
+    # Display assistant response
     with st.chat_message("assistant"):
-        st.markdown(response)s
+        st.markdown(response)
