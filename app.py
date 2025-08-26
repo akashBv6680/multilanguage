@@ -11,11 +11,13 @@ st.title("Multilingual LLM Chatbot 🤖💬")
 st.info("Ask me anything! I can understand and reply in English, Tamil, French, and many other languages.")
 
 # --- Model Loading ---
+# app.py
+# ...
 @st.cache_resource(show_spinner=False)
 def get_model_and_tokenizer():
-    # Use a powerful, multilingual model
-    model_id = "google/gemma-2b-it" 
-    
+    # Use a smaller, more compatible model
+    model_id = "facebook/blenderbot-400M-distill" 
+    # ... rest of the function remains the same
     # Load the tokenizer and model.
     # We now pass the Hugging Face token from Streamlit's secrets.
     # The 'HUGGINGFACE_TOKEN' secret is required for gated models.
