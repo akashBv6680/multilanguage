@@ -14,18 +14,16 @@ st.info("Ask me anything! I can understand and reply in English, Tamil, French, 
 # This function loads the model and tokenizer from Hugging Face.
 # @st.cache_resource is used to prevent the model from reloading on every interaction,
 # which is essential for performance.
+
 @st.cache_resource(show_spinner=False)
 def get_model_and_tokenizer():
-    # We use a single, powerful multilingual model
-    model_id = "google/gemma-2b-it" 
+    # Use a smaller, more compatible model
+    model_id = "facebook/blenderbot-400M-distill" 
     
     # Load the tokenizer and model.
-    # device_map="auto" intelligently uses your GPU if available, which is critical for
-    # handling larger models on platforms like Streamlit Cloud.
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
-        torch_dtype=torch.bfloat16,
         device_map="auto",
     )
     return tokenizer, model
