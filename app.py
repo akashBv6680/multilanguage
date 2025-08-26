@@ -2,6 +2,7 @@ import streamlit as st
 import torch
 import re
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import os
 
 # Set Streamlit page configuration
 st.set_page_config(page_title="Multilingual LLM Chatbot", layout="wide")
@@ -11,34 +12,24 @@ st.title("Multilingual LLM Chatbot 🤖💬")
 st.info("Ask me anything! I can understand and reply in English, Tamil, French, and many other languages.")
 
 # --- Model Loading ---
-# This function loads the model and tokenizer from Hugging Face.
-# @st.cache_resource is used to prevent the model from reloading on every interaction,
-# which is essential for performance.
-
-# app.py
-
-# ... other code ...
-
 @st.cache_resource(show_spinner=False)
 def get_model_and_tokenizer():
-    # Use a smaller, more compatible model
-    model_id = "microsoft/DialoGPT-medium"
+    # Use a powerful, multilingual model
+    model_id = "google/gemma-2b-it" 
     
     # Load the tokenizer and model.
+    # device_map="auto" intelligently uses your GPU if available.
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
-        # device_map="auto" is not needed for this smaller model, but you can keep it
-        # as it will work with the `accelerate` library
+        torch_dtype=torch.bfloat16,
         device_map="auto",
     )
     return tokenizer, model
 
-# ... rest of the code ...
 tokenizer, model = get_model_and_tokenizer()
 
 # --- Session State and UI Logic ---
-# Initialize chat history in session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
     # Add a system message to guide the model's behavior
