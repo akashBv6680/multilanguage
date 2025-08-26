@@ -1,77 +1,77 @@
 import streamlit as st
-import os
-from transformers import pipeline, Conversation
+import torch
+import re
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# To use a multilingual model, you might choose one like 'google/gemma-2b-it'
-# or 'facebook/blenderbot-400M-distill'. For this example, we'll use a placeholder.
-# In a real-world app, you'd load a model and tokenizer from Hugging Face.
-# @st.cache_resource(show_spinner=False)
-# def get_model():
-#     # This is where you would load your model
-#     model = pipeline("conversational", model="facebook/blenderbot-400M-distill")
-#     return model
+# Set Streamlit page configuration
+st.set_page_config(page_title="Multilingual LLM Chatbot", layout="wide")
 
-# Function to get the chatbot's full, conventional reply
-def get_conventional_reply(user_input, chat_history, language_code):
-    # This is a placeholder for a real LLM call.
-    # In practice, you would format the chat_history into a prompt.
+# Add a title and introductory text
+st.title("Multilingual LLM Chatbot 🤖💬")
+st.info("Ask me anything! I can understand and reply in English, Tamil, French, and many other languages.")
+
+# --- Model Loading ---
+# This function loads the model and tokenizer from Hugging Face.
+# @st.cache_resource is used to prevent the model from reloading on every interaction,
+# which is essential for performance.
+@st.cache_resource(show_spinner=False)
+def get_model_and_tokenizer():
+    # We use a single, powerful multilingual model
+    model_id = "google/gemma-2b-it" 
     
-    # A simple example of context-aware, multi-sentence replies
-    if language_code == "en":
-        response = "That's a great question! I'm here to help. Could you please provide more details about what you need assistance with?"
-    elif language_code == "ta":
-        response = "அது ஒரு சிறந்த கேள்வி! நான் உங்களுக்கு உதவ இங்கு இருக்கிறேன். உங்களுக்கு என்ன உதவி தேவை என்பதைப் பற்றி மேலும் விவரங்களை வழங்க முடியுமா?"
-    elif language_code == "fr":
-        response = "C'est une excellente question ! Je suis là pour vous aider. Pourriez-vous me donner plus de détails sur ce dont vous avez besoin ?"
-    elif language_code == "ja":
-        response = "それは素晴らしい質問ですね！お手伝いさせていただきます。どのようなことにお困りか、もう少し詳しく教えていただけますか？"
-    else:
-        response = "I'm sorry, I can only provide full, conventional replies in English, Tamil, French, or Japanese."
+    # Load the tokenizer and model.
+    # device_map="auto" intelligently uses your GPU if available, which is critical for
+    # handling larger models on platforms like Streamlit Cloud.
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+    )
+    return tokenizer, model
 
-    return response
+tokenizer, model = get_model_and_tokenizer()
 
-# --- Streamlit UI Setup ---
-
-st.set_page_config(page_title="Fully Conventional Chatbot", layout="wide")
-st.title("Fully Conventional Chatbot 💬")
-
-# Define the language options
-languages = {
-    "English": "en",
-    "Tamil": "ta",
-    "French": "fr",
-    "Japanese": "ja"
-}
-
-# Use a selectbox for language selection
-selected_language_name = st.selectbox(
-    "Choose your language:",
-    options=list(languages.keys())
-)
-selected_language_code = languages[selected_language_name]
-
+# --- Session State and UI Logic ---
 # Initialize chat history in session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    # Add a system message to guide the model's behavior
+    st.session_state.messages.append({"role": "system", "content": "You are a helpful and polite multilingual assistant. Reply to user questions in the language they use."})
 
 # Display chat messages from history
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] != "system":
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 # React to user input
-if prompt := st.chat_input("What is up?"):
+if prompt := st.chat_input("What's on your mind?"):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message
+    
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Get a full, conversational response
-    response = get_conventional_reply(prompt, st.session_state.messages, selected_language_code)
-
-    # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    # Display assistant response
+    # Prepare the chat history for the model
+    chat = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
+    
+    # Use the tokenizer's chat template to format the conversation
+    tokenized_chat = tokenizer.apply_chat_template(chat, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+    
+    # Move the tokenized input to the GPU for faster processing
+    tokenized_chat = tokenized_chat.to(model.device)
+    
+    with st.spinner("Thinking..."):
+        # Generate the response
+        outputs = model.generate(tokenized_chat, max_new_tokens=256)
+        response_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Extract just the new assistant's reply from the full response
+    assistant_text = re.search(r'<end_of_turn>model\s*(.*?)(?:<end_of_turn>|$)', response_text, re.DOTALL).group(1).strip()
+    
+    # Add assistant's reply to chat history
+    st.session_state.messages.append({"role": "assistant", "content": assistant_text})
+    
     with st.chat_message("assistant"):
-        st.markdown(response)
+        st.markdown(assistant_text)
